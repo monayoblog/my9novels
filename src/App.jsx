@@ -37,11 +37,14 @@ function debounce(fn, ms) {
 async function searchBooks(query) {
   if (!query || query.length < 2) return [];
   try {
-    const res = await fetch(
-      `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=8&langRestrict=ja&printType=books`
-    );
+    const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=8&langRestrict=ja&printType=books`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error("Google Books API error:", res.status, res.statusText);
+      return [];
+    }
     const data = await res.json();
-    if (!data.items) return [];
+    if (!data.items || data.items.length === 0) return [];
     return data.items.map((item) => ({
       id: item.id,
       title: item.volumeInfo.title || "タイトル不明",
@@ -51,7 +54,10 @@ async function searchBooks(query) {
         : "",
       publishedDate: item.volumeInfo.publishedDate || "",
     }));
-  } catch { return []; }
+  } catch (err) {
+    console.error("Search error:", err);
+    return [];
+  }
 }
 
 // ========== メインコンポーネント ==========
@@ -64,6 +70,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const [showComment, setShowComment] = useState(false);
   const [commentSlot, setCommentSlot] = useState(null);
   const [commentText, setCommentText] = useState("");
@@ -102,10 +109,16 @@ export default function App() {
   // 検索デバウンス
   const debouncedSearch = useCallback(
     debounce(async (q) => {
-      if (q.length < 2) { setSearchResults([]); setSearching(false); return; }
+      if (q.length < 2) { setSearchResults([]); setSearching(false); setSearchError(""); return; }
       setSearching(true);
-      const results = await searchBooks(q);
-      setSearchResults(results);
+      setSearchError("");
+      try {
+        const results = await searchBooks(q);
+        setSearchResults(results);
+        if (results.length === 0) setSearchError("");
+      } catch (err) {
+        setSearchError("検索に失敗しました: " + err.message);
+      }
       setSearching(false);
     }, 350),
     []
@@ -677,7 +690,7 @@ export default function App() {
               )}
               {!searching && searchResults.length === 0 && searchQuery.length >= 2 && (
                 <div style={{ textAlign: "center", padding: 24, color: "#bbb", fontSize: 13 }}>
-                  見つかりませんでした。別のキーワードで試してみてください。
+                  {searchError || "見つかりませんでした。別のキーワードで試してみてください。"}
                 </div>
               )}
               {!searching && searchQuery.length < 2 && searchQuery.length > 0 && (
