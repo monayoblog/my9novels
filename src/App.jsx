@@ -37,7 +37,7 @@ function debounce(fn, ms) {
 async function searchBooks(query) {
   if (!query || query.length < 2) return [];
   try {
-    const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=8&langRestrict=ja&printType=books`;
+    const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=8&langRestrict=ja&printType=books&key=AIzaSyCb7VmvDZvq39WzG9bX-3wo1x1llIWLWzk`;
     const res = await fetch(url);
     if (!res.ok) {
       console.error("Google Books API error:", res.status, res.statusText);
