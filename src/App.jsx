@@ -462,7 +462,7 @@ export default function App() {
                 {book ? (
                   <>
                     {book.thumbnail ? (
-                      <img className="cover-img" src={book.thumbnail} alt={book.title} crossOrigin="anonymous" />
+                      <img className="cover-img" src={book.thumbnail} alt={book.title} />
                     ) : (
                       <div style={{
                         width: "100%", height: "100%",
@@ -531,7 +531,7 @@ export default function App() {
             </div>
             <div style={{
               display: "grid",
-              gridTemplateColumns: "repeat(2, 1fr)",
+              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
               gap: 8,
             }}>
               {books.map((book, i) =>
