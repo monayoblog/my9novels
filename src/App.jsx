@@ -75,22 +75,45 @@ function debounce(fn, ms) {
   return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
 }
 
+// ========== Open Library API (バックアップ) ==========
+async function searchBooksOpenLibrary(query) {
+  try {
+    const res = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=8&lang=jpn`, {
+      headers: { "User-Agent": "My9Novels/1.0 (my9novels.com)" }
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!data.docs || data.docs.length === 0) return [];
+    return data.docs.map((doc) => {
+      const coverId = doc.cover_i;
+      const rawThumb = coverId ? `https://covers.openlibrary.org/b/id/${coverId}-M.jpg` : "";
+      return {
+        id: doc.key || `ol-${doc.cover_edition_key || Math.random()}`,
+        title: doc.title || "タイトル不明",
+        author: (doc.author_name || []).join(", ") || "",
+        thumbnail: rawThumb,
+        proxiedThumbnail: proxyImageUrl(rawThumb),
+        publishedDate: doc.first_publish_year ? String(doc.first_publish_year) : "",
+        source: "openlibrary",
+      };
+    });
+  } catch { return []; }
+}
+
 // ========== 検索API ==========
 async function searchBooks(query) {
   if (!query || query.length < 2) return [];
   const cacheKey = query.toLowerCase().trim();
   if (searchCache[cacheKey]) return searchCache[cacheKey];
+  // Google Books APIを試行
   for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
     try {
       const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=8&langRestrict=ja&printType=books&key=${getApiKey()}`;
       const res = await fetch(url);
       if (res.status === 429) continue;
-      if (!res.ok) {
-        console.error("Google Books API error:", res.status, res.statusText);
-        continue;
-      }
+      if (!res.ok) continue;
       const data = await res.json();
-      if (!data.items || data.items.length === 0) return [];
+      if (!data.items || data.items.length === 0) break;
       const results = data.items.map((item) => {
         const rawThumb = item.volumeInfo.imageLinks
           ? (item.volumeInfo.imageLinks.thumbnail || item.volumeInfo.imageLinks.smallThumbnail || "").replace("http://", "https://")
@@ -102,14 +125,19 @@ async function searchBooks(query) {
           thumbnail: rawThumb,
           proxiedThumbnail: proxyImageUrl(rawThumb),
           publishedDate: item.volumeInfo.publishedDate || "",
+          source: "google",
         };
       });
       searchCache[cacheKey] = results;
       return results;
-    } catch (err) {
-      console.error("Search error:", err);
-      continue;
-    }
+    } catch { continue; }
+  }
+  // Google Booksが全滅 → Open Libraryにフォールバック
+  console.log("Google Books API limit reached, falling back to Open Library");
+  const olResults = await searchBooksOpenLibrary(query);
+  if (olResults.length > 0) {
+    searchCache[cacheKey] = olResults;
+    return olResults;
   }
   return "API_LIMIT";
 }
