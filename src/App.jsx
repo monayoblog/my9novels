@@ -5,7 +5,19 @@ const AFFILIATE_TAG = "my9novels-22";
 const SITE_URL = "https://my9novels.vercel.app"; // ← ドメイン反映後に https://my9novels.com に変更
 const HASHTAG = "#My9Novels #私を構成する9冊の小説";
 
-// ========== 画像プロキシ ==========
+// ========== 画像ユーティリティ ==========
+async function imageToDataUrl(url) {
+  try {
+    const res = await fetch(`https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=300&h=450&fit=cover`);
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.readAsDataURL(blob);
+    });
+  } catch { return ""; }
+}
+
 function proxyImageUrl(url) {
   if (!url) return "";
   return `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=300&h=450&fit=cover`;
@@ -195,12 +207,26 @@ export default function App() {
     if (!window.html2canvas || !gridRef.current) return;
     setSaving(true);
     try {
+      // 表紙画像をBase64に変換してから保存
+      const imgs = gridRef.current.querySelectorAll("img.cover-img");
+      const origSrcs = [];
+      for (const img of imgs) {
+        origSrcs.push(img.src);
+        try {
+          const dataUrl = await imageToDataUrl(img.src);
+          if (dataUrl) img.src = dataUrl;
+        } catch {}
+      }
+      // 少し待ってからキャプチャ
+      await new Promise(r => setTimeout(r, 200));
       const canvas = await window.html2canvas(gridRef.current, {
         useCORS: true,
-        allowTaint: false,
+        allowTaint: true,
         backgroundColor: "#ffffff",
         scale: 2,
       });
+      // 元のsrcに戻す
+      imgs.forEach((img, i) => { if (origSrcs[i]) img.src = origSrcs[i]; });
       const link = document.createElement("a");
       link.download = "my9novels.png";
       link.href = canvas.toDataURL("image/png");
@@ -477,7 +503,7 @@ export default function App() {
                 {book ? (
                   <>
                     {book.thumbnail ? (
-                      <img className="cover-img" src={proxyImageUrl(book.thumbnail)} alt={book.title} crossOrigin="anonymous" />
+                      <img className="cover-img" src={book.thumbnail} alt={book.title} />
                     ) : (
                       <div style={{
                         width: "100%", height: "100%",
