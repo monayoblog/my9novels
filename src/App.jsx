@@ -296,22 +296,6 @@ export default function App() {
         .action-close { background: #fff; color: #e74c3c; }
         .action-comment { background: #fff; color: #4a90d9; }
 
-        .amazon-badge {
-          position: absolute;
-          bottom: 6px; right: 6px;
-          width: 26px; height: 26px;
-          border-radius: 50%;
-          background: #ff9900;
-          display: flex; align-items: center; justify-content: center;
-          box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-          transition: all 0.15s;
-          z-index: 2;
-        }
-        .amazon-badge:hover {
-          transform: scale(1.15);
-          box-shadow: 0 2px 8px rgba(255,153,0,0.5);
-        }
-
         .slot-number {
           position: absolute;
           top: 6px; left: 8px;
