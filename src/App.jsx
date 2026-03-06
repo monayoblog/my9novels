@@ -498,18 +498,6 @@ export default function App() {
 
                     {comments[i] && <div className="comment-badge">{comments[i]}</div>}
 
-                    {/* Amazon badge - always visible */}
-                    <a
-                      className="amazon-badge"
-                      href={generateAmazonUrl(book.title, book.author)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      title="Amazonで見る"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#fff"><path d="M1.04 17.52q.1-.16.32-.02 2.74 1.82 5.927 2.754 3.186.933 6.59.84 2.155-.06 4.24-.56 2.085-.5 4.03-1.42.312-.15.46.12.148.27-.12.46-2.1 1.6-4.63 2.46-2.53.86-5.25.86-3.03 0-5.8-1.1-2.77-1.1-4.86-3.08-.126-.12-.04-.3zM22.56 19.2q-.18-.22-.78-.1-2.5.56-5.05.56-5.12 0-9.16-2.7-.26-.18-.18.16.02.1.12.18Q11.48 21 18.14 21q1.18 0 2.38-.2 1.52-.26 2.24-.78.14-.1.06-.24-.08-.14-.26-.08z"/><path d="M14.41 1.62q-1.155-.56-2.565-.56-1.41 0-2.67.56-1.26.56-2.19 1.54-.93.98-1.44 2.3-.51 1.32-.48 2.73.03 1.41.6 2.62.57 1.21 1.53 2.06.96.85 2.19 1.26 1.23.41 2.5.35 1.27-.06 2.4-.52 1.13-.46 1.98-1.28.85-.82 1.33-1.95.48-1.13.48-2.4 0-1.46-.58-2.7-.58-1.24-1.62-2.01z"/></svg>
-                    </a>
-
                     {!isSharedView && (
                       <div className="slot-actions">
                         <button className="action-btn action-close" onClick={(e) => { e.stopPropagation(); removeBook(i); }} title="削除">✕</button>
