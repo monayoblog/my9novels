@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 // ========== 設定 ==========
 const AFFILIATE_TAG = "my9novels-22";
-const SITE_URL = "https://my9novels.com"; // ← あなたのサイトURL
+const SITE_URL = "https://my9novels.vercel.app"; // ← あなたのサイトURL
 const HASHTAG = "#My9Novels #私を構成する9冊の小説";
 
 // ========== ユーティリティ ==========
