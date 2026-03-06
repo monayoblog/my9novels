@@ -237,10 +237,9 @@ export default function App() {
   const shareToX = () => {
     const data = encodeShareData(books);
     const shareUrl = `${SITE_URL}?s=${data}`;
-    const titles = books.filter(Boolean).slice(0, 5).map((b) => b.title).join("、");
     const text = userName
-      ? `${userName}を構成する9冊の小説\n${titles}${selectedCount > 5 ? " ほか" : ""}\n\n${shareUrl}\n${HASHTAG}`
-      : `私を構成する9冊の小説\n${titles}${selectedCount > 5 ? " ほか" : ""}\n\n${shareUrl}\n${HASHTAG}`;
+      ? `${userName}を構成する9冊の小説\n\n${shareUrl}\n${HASHTAG}`
+      : `私を構成する9冊の小説\n\n${shareUrl}\n${HASHTAG}`;
     window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank", "width=550,height=420");
   };
 
