@@ -115,9 +115,10 @@ export default function App() {
 
   // 共有URL読み込み
   useEffect(() => {
-    const hash = window.location.hash.slice(1);
-    if (hash && hash.includes(",")) {
-      const ids = decodeShareIds(hash);
+    const params = new URLSearchParams(window.location.search);
+    const shareData = params.get("s");
+    if (shareData && shareData.includes(",")) {
+      const ids = decodeShareIds(shareData);
       if (ids.length > 0) {
         const loadBooks = async () => {
           const newBooks = Array(9).fill(null);
@@ -234,17 +235,19 @@ export default function App() {
 
   // Xシェア
   const shareToX = () => {
+    const data = encodeShareData(books);
+    const shareUrl = `${SITE_URL}?s=${data}`;
     const titles = books.filter(Boolean).slice(0, 5).map((b) => b.title).join("、");
     const text = userName
-      ? `${userName}を構成する9冊の小説\n${titles}${selectedCount > 5 ? " ほか" : ""}\n\n${SITE_URL}\n${HASHTAG}`
-      : `私を構成する9冊の小説\n${titles}${selectedCount > 5 ? " ほか" : ""}\n\n${SITE_URL}\n${HASHTAG}`;
+      ? `${userName}を構成する9冊の小説\n${titles}${selectedCount > 5 ? " ほか" : ""}\n\n${shareUrl}\n${HASHTAG}`
+      : `私を構成する9冊の小説\n${titles}${selectedCount > 5 ? " ほか" : ""}\n\n${shareUrl}\n${HASHTAG}`;
     window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank", "width=550,height=420");
   };
 
   // 共有URL
   const copyShareUrl = () => {
-    const hash = encodeShareData(books);
-    const url = `${SITE_URL}#${hash}`;
+    const data = encodeShareData(books);
+    const url = `${SITE_URL}?s=${data}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
