@@ -465,7 +465,7 @@ export default function App() {
         <div ref={gridRef} style={{ background: "#fff", borderRadius: 16, padding: 16, boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
           {/* グリッド内タイトル（画像保存時に含まれる） */}
           <div style={{ textAlign: "center", marginBottom: 12 }}>
-            <span style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 14, color: "#666", letterSpacing: 1 }}>
+            <span style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 18, fontWeight: 600, color: "#333", letterSpacing: 2 }}>
               {userName ? `${userName}を構成する9つの小説` : "私を構成する9つの小説"}
             </span>
           </div>
