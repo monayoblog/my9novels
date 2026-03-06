@@ -90,6 +90,8 @@ export default function App() {
   const [showNameInput, setShowNameInput] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showImagePreview, setShowImagePreview] = useState(false);
+  const [generatedImage, setGeneratedImage] = useState("");
   const gridRef = useRef(null);
   const searchInputRef = useRef(null);
 
@@ -203,10 +205,17 @@ export default function App() {
         backgroundColor: "#ffffff",
         scale: 2,
       });
-      const link = document.createElement("a");
-      link.download = "my9novels.png";
-      link.href = canvas.toDataURL("image/png");
-      link.click();
+      const dataUrl = canvas.toDataURL("image/png");
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        setGeneratedImage(dataUrl);
+        setShowImagePreview(true);
+      } else {
+        const link = document.createElement("a");
+        link.download = "my9novels.png";
+        link.href = dataUrl;
+        link.click();
+      }
     } catch (e) { console.error("Save failed:", e); }
     setSaving(false);
   };
@@ -631,7 +640,7 @@ export default function App() {
 
         {/* 注意書き */}
         <div style={{ textAlign: "center", marginTop: 24, fontSize: 11, color: "#bbb", lineHeight: 1.8 }}>
-          <p>※ Amazonアソシエイトのリンクを含みます</p>
+          <p>Amazonアソシエイトに参加しています</p>
           <p style={{ marginTop: 4 }}>
             by <a href={SITE_URL} style={{ color: "#999" }}>My9Novels</a>
           </p>
@@ -804,6 +813,29 @@ export default function App() {
               <p>・Amazonアソシエイトプログラムに参加しており、リンク経由の購入に対して紹介料が発生する場合があります。</p>
               <p>・アクセス解析のため、Google Analytics 等の解析ツールを導入する場合があります。</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 画像プレビューモーダル（モバイル用） */}
+      {showImagePreview && generatedImage && (
+        <div className="modal-overlay" onClick={() => setShowImagePreview(false)}>
+          <div className="modal-box" style={{ padding: 20, maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: "#333" }}>📷 画像を保存</h3>
+              <button
+                onClick={() => setShowImagePreview(false)}
+                style={{ background: "none", border: "none", fontSize: 20, color: "#999", cursor: "pointer", padding: 4 }}
+              >✕</button>
+            </div>
+            <p style={{ fontSize: 13, color: "#666", marginBottom: 12, textAlign: "center" }}>
+              画像を長押しして「写真に保存」してください
+            </p>
+            <img
+              src={generatedImage}
+              alt="My9Novels"
+              style={{ width: "100%", borderRadius: 8, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}
+            />
           </div>
         </div>
       )}
