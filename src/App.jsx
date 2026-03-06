@@ -482,11 +482,7 @@ export default function App() {
 
         {/* ユーザー名 */}
         <div style={{ textAlign: "center", marginBottom: 20 }}>
-          {isSharedView ? (
-            <p style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 16, fontWeight: 600, color: "#333" }}>
-              {userName || "名無し"}さんの9選
-            </p>
-          ) : (
+          {isSharedView ? null : (
             <input
               className="name-input"
               type="text"
@@ -503,7 +499,7 @@ export default function App() {
           {/* グリッド内タイトル（画像保存時に含まれる） */}
           <div style={{ textAlign: "center", marginBottom: 12 }}>
             <span style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 18, fontWeight: 600, color: "#333", letterSpacing: 2 }}>
-              {userName ? `${userName}を構成する9つの小説` : "私を構成する9つの小説"}
+              {isSharedView ? "私を構成する9つの小説" : (userName ? `${userName}を構成する9つの小説` : "私を構成する9つの小説")}
             </span>
           </div>
 
@@ -523,7 +519,13 @@ export default function App() {
                 {book ? (
                   <>
                     {book.thumbnail ? (
-                      <img className="cover-img" src={book.thumbnail} alt={book.title} crossOrigin="anonymous" />
+                      isSharedView ? (
+                        <a href={generateAmazonUrl(book.title, book.author)} target="_blank" rel="noopener noreferrer" style={{ display: "block", width: "100%", height: "100%" }}>
+                          <img className="cover-img" src={book.thumbnail} alt={book.title} crossOrigin="anonymous" />
+                        </a>
+                      ) : (
+                        <img className="cover-img" src={book.thumbnail} alt={book.title} crossOrigin="anonymous" />
+                      )
                     ) : (
                       <div style={{
                         width: "100%", height: "100%",
