@@ -2,8 +2,14 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 // ========== 設定 ==========
 const AFFILIATE_TAG = "my9novels-22";
-const SITE_URL = "https://my9novels.vercel.app"; // ← あなたのサイトURL
+const SITE_URL = "https://my9novels.vercel.app"; // ← ドメイン反映後に https://my9novels.com に変更
 const HASHTAG = "#My9Novels #私を構成する9冊の小説";
+
+// ========== 画像プロキシ ==========
+function proxyImageUrl(url) {
+  if (!url) return "";
+  return `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=300&h=450&fit=cover`;
+}
 
 // ========== ユーティリティ ==========
 function generateAmazonUrl(title, author) {
@@ -34,6 +40,11 @@ function debounce(fn, ms) {
 }
 
 // ========== 検索API ==========
+function proxyImageUrl(url) {
+  if (!url) return "";
+  return `/api/proxy?url=${encodeURIComponent(url)}`;
+}
+
 async function searchBooks(query) {
   if (!query || query.length < 2) return [];
   try {
@@ -45,15 +56,19 @@ async function searchBooks(query) {
     }
     const data = await res.json();
     if (!data.items || data.items.length === 0) return [];
-    return data.items.map((item) => ({
-      id: item.id,
-      title: item.volumeInfo.title || "タイトル不明",
-      author: (item.volumeInfo.authors || []).join(", ") || "",
-      thumbnail: item.volumeInfo.imageLinks
+    return data.items.map((item) => {
+      const rawThumb = item.volumeInfo.imageLinks
         ? (item.volumeInfo.imageLinks.thumbnail || item.volumeInfo.imageLinks.smallThumbnail || "").replace("http://", "https://")
-        : "",
-      publishedDate: item.volumeInfo.publishedDate || "",
-    }));
+        : "";
+      return {
+        id: item.id,
+        title: item.volumeInfo.title || "タイトル不明",
+        author: (item.volumeInfo.authors || []).join(", ") || "",
+        thumbnail: rawThumb,
+        proxiedThumbnail: proxyImageUrl(rawThumb),
+        publishedDate: item.volumeInfo.publishedDate || "",
+      };
+    });
   } catch (err) {
     console.error("Search error:", err);
     return [];
@@ -182,7 +197,7 @@ export default function App() {
     try {
       const canvas = await window.html2canvas(gridRef.current, {
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: "#ffffff",
         scale: 2,
       });
@@ -462,7 +477,7 @@ export default function App() {
                 {book ? (
                   <>
                     {book.thumbnail ? (
-                      <img className="cover-img" src={book.thumbnail} alt={book.title} />
+                      <img className="cover-img" src={proxyImageUrl(book.thumbnail)} alt={book.title} crossOrigin="anonymous" />
                     ) : (
                       <div style={{
                         width: "100%", height: "100%",
