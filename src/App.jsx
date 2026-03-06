@@ -17,20 +17,31 @@ function generateAmazonUrl(title, author) {
   return `https://www.amazon.co.jp/s?k=${q}&i=stripbooks&tag=${AFFILIATE_TAG}`;
 }
 
-function encodeShareData(books, comments, userName) {
-  const data = { b: [], c: comments, u: userName };
-  books.forEach((book, i) => {
-    if (book) data.b.push({ i, id: book.id, t: book.title, a: book.author, img: book.originalThumbnail || book.thumbnail });
-  });
-  try {
-    return btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-  } catch { return ""; }
+function encodeShareData(books) {
+  return books.map(b => b ? b.id : "").join(",");
 }
 
-function decodeShareData(hash) {
+function decodeShareIds(hash) {
+  if (!hash) return [];
+  return hash.split(",");
+}
+
+async function fetchBookById(bookId) {
+  if (!bookId) return null;
   try {
-    const json = decodeURIComponent(escape(atob(hash)));
-    return JSON.parse(json);
+    const res = await fetch(`https://www.googleapis.com/books/v1/volumes/${bookId}?key=AIzaSyCb7VmvDZvq39WzG9bX-3wo1x1llIWLWzk`);
+    if (!res.ok) return null;
+    const item = await res.json();
+    const thumbnail = item.volumeInfo.imageLinks
+      ? (item.volumeInfo.imageLinks.thumbnail || item.volumeInfo.imageLinks.smallThumbnail || "").replace("http://", "https://")
+      : "";
+    return {
+      id: item.id,
+      title: item.volumeInfo.title || "タイトル不明",
+      author: (item.volumeInfo.authors || []).join(", ") || "",
+      originalThumbnail: thumbnail,
+      thumbnail: thumbnail ? `https://images.weserv.nl/?url=${encodeURIComponent(thumbnail)}&w=300&h=450&fit=cover` : "",
+    };
   } catch { return null; }
 }
 
@@ -105,18 +116,19 @@ export default function App() {
   // 共有URL読み込み
   useEffect(() => {
     const hash = window.location.hash.slice(1);
-    if (hash) {
-      const data = decodeShareData(hash);
-      if (data && data.b) {
-        const newBooks = Array(9).fill(null);
-        data.b.forEach((b) => { 
-          const proxied = b.img ? `https://images.weserv.nl/?url=${encodeURIComponent(b.img)}&w=300&h=450&fit=cover` : "";
-          newBooks[b.i] = { id: b.id, title: b.t, author: b.a, originalThumbnail: b.img, thumbnail: proxied }; 
-        });
-        setBooks(newBooks);
-        setComments(data.c || {});
-        setUserName(data.u || "");
-        setIsSharedView(true);
+    if (hash && hash.includes(",")) {
+      const ids = decodeShareIds(hash);
+      if (ids.length > 0) {
+        const loadBooks = async () => {
+          const newBooks = Array(9).fill(null);
+          const promises = ids.map((id, idx) => 
+            id ? fetchBookById(id).then(book => { if (book) newBooks[idx] = book; }) : Promise.resolve()
+          );
+          await Promise.all(promises);
+          setBooks(newBooks);
+          setIsSharedView(true);
+        };
+        loadBooks();
       }
     }
   }, []);
@@ -222,16 +234,18 @@ export default function App() {
 
   // Xシェア
   const shareToX = () => {
+    const hash = encodeShareData(books);
+    const shareUrl = `${SITE_URL}#${hash}`;
     const titles = books.filter(Boolean).slice(0, 5).map((b) => b.title).join("、");
     const text = userName
-      ? `${userName}を構成する9冊の小説\n${titles}${selectedCount > 5 ? " ほか" : ""}\n\n${SITE_URL}\n${HASHTAG}`
-      : `私を構成する9冊の小説\n${titles}${selectedCount > 5 ? " ほか" : ""}\n\n${SITE_URL}\n${HASHTAG}`;
+      ? `${userName}を構成する9冊の小説\n${titles}${selectedCount > 5 ? " ほか" : ""}\n\n${shareUrl}\n${HASHTAG}`
+      : `私を構成する9冊の小説\n${titles}${selectedCount > 5 ? " ほか" : ""}\n\n${shareUrl}\n${HASHTAG}`;
     window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank", "width=550,height=420");
   };
 
   // 共有URL
   const copyShareUrl = () => {
-    const hash = encodeShareData(books, comments, userName);
+    const hash = encodeShareData(books);
     const url = `${SITE_URL}#${hash}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
