@@ -40,11 +40,6 @@ function debounce(fn, ms) {
 }
 
 // ========== 検索API ==========
-function proxyImageUrl(url) {
-  if (!url) return "";
-  return `/api/proxy?url=${encodeURIComponent(url)}`;
-}
-
 async function searchBooks(query) {
   if (!query || query.length < 2) return [];
   try {
