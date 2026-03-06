@@ -222,10 +222,12 @@ export default function App() {
 
   // Xシェア
   const shareToX = () => {
+    const hash = encodeShareData(books, comments, userName);
+    const shareUrl = `${SITE_URL}#${hash}`;
     const titles = books.filter(Boolean).slice(0, 5).map((b) => b.title).join("、");
     const text = userName
-      ? `${userName}を構成する9冊の小説\n${titles}${selectedCount > 5 ? " ほか" : ""}\n\n${SITE_URL}\n${HASHTAG}`
-      : `私を構成する9冊の小説\n${titles}${selectedCount > 5 ? " ほか" : ""}\n\n${SITE_URL}\n${HASHTAG}`;
+      ? `${userName}を構成する9冊の小説\n${titles}${selectedCount > 5 ? " ほか" : ""}\n\n${shareUrl}\n${HASHTAG}`
+      : `私を構成する9冊の小説\n${titles}${selectedCount > 5 ? " ほか" : ""}\n\n${shareUrl}\n${HASHTAG}`;
     window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank", "width=550,height=420");
   };
 
