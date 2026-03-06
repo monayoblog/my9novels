@@ -5,19 +5,7 @@ const AFFILIATE_TAG = "my9novels-22";
 const SITE_URL = "https://my9novels.vercel.app"; // ← ドメイン反映後に https://my9novels.com に変更
 const HASHTAG = "#My9Novels #私を構成する9冊の小説";
 
-// ========== 画像ユーティリティ ==========
-async function imageToDataUrl(url) {
-  try {
-    const res = await fetch(`https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=300&h=450&fit=cover`);
-    const blob = await res.blob();
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
-      reader.readAsDataURL(blob);
-    });
-  } catch { return ""; }
-}
-
+// ========== 画像プロキシ ==========
 function proxyImageUrl(url) {
   if (!url) return "";
   return `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=300&h=450&fit=cover`;
@@ -32,7 +20,7 @@ function generateAmazonUrl(title, author) {
 function encodeShareData(books, comments, userName) {
   const data = { b: [], c: comments, u: userName };
   books.forEach((book, i) => {
-    if (book) data.b.push({ i, id: book.id, t: book.title, a: book.author, img: book.thumbnail });
+    if (book) data.b.push({ i, id: book.id, t: book.title, a: book.author, img: book.originalThumbnail || book.thumbnail });
   });
   try {
     return btoa(unescape(encodeURIComponent(JSON.stringify(data))));
@@ -124,7 +112,10 @@ export default function App() {
       const data = decodeShareData(hash);
       if (data && data.b) {
         const newBooks = Array(9).fill(null);
-        data.b.forEach((b) => { newBooks[b.i] = { id: b.id, title: b.t, author: b.a, thumbnail: b.img }; });
+        data.b.forEach((b) => { 
+          const proxied = b.img ? `https://images.weserv.nl/?url=${encodeURIComponent(b.img)}&w=300&h=450&fit=cover` : "";
+          newBooks[b.i] = { id: b.id, title: b.t, author: b.a, originalThumbnail: b.img, thumbnail: proxied }; 
+        });
         setBooks(newBooks);
         setComments(data.c || {});
         setUserName(data.u || "");
@@ -167,7 +158,11 @@ export default function App() {
 
   const selectBook = (book) => {
     const newBooks = [...books];
-    newBooks[activeSlot] = book;
+    newBooks[activeSlot] = {
+      ...book,
+      originalThumbnail: book.thumbnail,
+      thumbnail: book.thumbnail ? `https://images.weserv.nl/?url=${encodeURIComponent(book.thumbnail)}&w=300&h=450&fit=cover` : "",
+    };
     setBooks(newBooks);
     setShowSearch(false);
     setSearchQuery("");
@@ -207,26 +202,12 @@ export default function App() {
     if (!window.html2canvas || !gridRef.current) return;
     setSaving(true);
     try {
-      // 表紙画像をBase64に変換してから保存
-      const imgs = gridRef.current.querySelectorAll("img.cover-img");
-      const origSrcs = [];
-      for (const img of imgs) {
-        origSrcs.push(img.src);
-        try {
-          const dataUrl = await imageToDataUrl(img.src);
-          if (dataUrl) img.src = dataUrl;
-        } catch {}
-      }
-      // 少し待ってからキャプチャ
-      await new Promise(r => setTimeout(r, 200));
       const canvas = await window.html2canvas(gridRef.current, {
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: "#ffffff",
         scale: 2,
       });
-      // 元のsrcに戻す
-      imgs.forEach((img, i) => { if (origSrcs[i]) img.src = origSrcs[i]; });
       const link = document.createElement("a");
       link.download = "my9novels.png";
       link.href = canvas.toDataURL("image/png");
@@ -503,7 +484,7 @@ export default function App() {
                 {book ? (
                   <>
                     {book.thumbnail ? (
-                      <img className="cover-img" src={book.thumbnail} alt={book.title} />
+                      <img className="cover-img" src={book.thumbnail} alt={book.title} crossOrigin="anonymous" />
                     ) : (
                       <div style={{
                         width: "100%", height: "100%",
