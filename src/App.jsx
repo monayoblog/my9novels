@@ -7,8 +7,10 @@ const HASHTAG = "#My9Novels #私を構成する9つの小説";
 
 const API_KEYS = [
   "AIzaSyCb7VmvDZvq39WzG9bX-3wo1x1llIWLWzk",
-  "AIzaSyCEGI_Cw_bHVGgVVkBuSHyBWleNnY62XbI",
-  "AIzaSyD5HiRxrae-5UOt_J27eaEsfeenwyPhUL8",
+  "AIzaSyDtT_E3McQOUcmr1D0Y8URbXLdK2pKlVww",
+  "AIzaSyC9mISBdj5vOkJ6Py9JVTsa9_T36nHkUig",
+  "AIzaSyB9GhegsaunjooY28nneYMitknwtKt6T2U",
+  "AIzaSyAaPjMrLMTVL9YS-2_i9Qzse8zqDuWPHq0",
 ];
 let keyIndex = 0;
 function getApiKey() {
@@ -16,6 +18,10 @@ function getApiKey() {
   keyIndex++;
   return key;
 }
+
+// ========== 検索キャッシュ ==========
+const searchCache = {};
+const bookCache = {};
 
 // ========== 画像プロキシ ==========
 function proxyImageUrl(url) {
@@ -40,23 +46,26 @@ function decodeShareIds(hash) {
 
 async function fetchBookById(bookId) {
   if (!bookId) return null;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  if (bookCache[bookId]) return bookCache[bookId];
+  for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
     try {
       const res = await fetch(`https://www.googleapis.com/books/v1/volumes/${bookId}?key=${getApiKey()}`);
-      if (res.status === 429) { await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); continue; }
+      if (res.status === 429) continue;
       if (!res.ok) return null;
       const item = await res.json();
       const thumbnail = item.volumeInfo.imageLinks
         ? (item.volumeInfo.imageLinks.thumbnail || item.volumeInfo.imageLinks.smallThumbnail || "").replace("http://", "https://")
         : "";
-      return {
+      const book = {
         id: item.id,
         title: item.volumeInfo.title || "タイトル不明",
         author: (item.volumeInfo.authors || []).join(", ") || "",
         originalThumbnail: thumbnail,
         thumbnail: thumbnail ? `https://images.weserv.nl/?url=${encodeURIComponent(thumbnail)}&w=300&h=450&fit=cover` : "",
       };
-    } catch { if (attempt === 2) return null; }
+      bookCache[bookId] = book;
+      return book;
+    } catch { continue; }
   }
   return null;
 }
@@ -69,18 +78,20 @@ function debounce(fn, ms) {
 // ========== 検索API ==========
 async function searchBooks(query) {
   if (!query || query.length < 2) return [];
-  for (let attempt = 0; attempt < 3; attempt++) {
+  const cacheKey = query.toLowerCase().trim();
+  if (searchCache[cacheKey]) return searchCache[cacheKey];
+  for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
     try {
       const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=8&langRestrict=ja&printType=books&key=${getApiKey()}`;
       const res = await fetch(url);
-      if (res.status === 429) { await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); continue; }
+      if (res.status === 429) continue;
       if (!res.ok) {
         console.error("Google Books API error:", res.status, res.statusText);
-        return [];
+        continue;
       }
       const data = await res.json();
       if (!data.items || data.items.length === 0) return [];
-      return data.items.map((item) => {
+      const results = data.items.map((item) => {
         const rawThumb = item.volumeInfo.imageLinks
           ? (item.volumeInfo.imageLinks.thumbnail || item.volumeInfo.imageLinks.smallThumbnail || "").replace("http://", "https://")
           : "";
@@ -93,12 +104,14 @@ async function searchBooks(query) {
           publishedDate: item.volumeInfo.publishedDate || "",
         };
       });
+      searchCache[cacheKey] = results;
+      return results;
     } catch (err) {
       console.error("Search error:", err);
-      if (attempt === 2) return [];
+      continue;
     }
   }
-  return [];
+  return "API_LIMIT";
 }
 
 // ========== メインコンポーネント ==========
@@ -162,10 +175,14 @@ export default function App() {
       setSearchError("");
       try {
         const results = await searchBooks(q);
-        setSearchResults(results);
-        if (results.length === 0) setSearchError("");
+        if (results === "API_LIMIT") {
+          setSearchResults([]);
+          setSearchError("ただいまアクセスが集中しています。しばらくしてからお試しください。");
+        } else {
+          setSearchResults(results);
+        }
       } catch (err) {
-        setSearchError("検索に失敗しました: " + err.message);
+        setSearchError("検索に失敗しました。しばらくしてからお試しください。");
       }
       setSearching(false);
     }, 350),
