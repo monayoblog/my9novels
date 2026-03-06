@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 // ========== 設定 ==========
 const AFFILIATE_TAG = "my9novels-22";
 const SITE_URL = "https://my9novels.vercel.app"; // ← ドメイン反映後に https://my9novels.com に変更
-const HASHTAG = "#My9Novels #私を構成する9冊の小説";
+const HASHTAG = "#My9Novels #私を構成する9つの小説";
 
 // ========== 画像プロキシ ==========
 function proxyImageUrl(url) {
@@ -238,8 +238,8 @@ export default function App() {
     const data = encodeShareData(books);
     const shareUrl = `${SITE_URL}?s=${data}`;
     const text = userName
-      ? `${userName}を構成する9冊の小説\n\n${shareUrl}\n${HASHTAG}`
-      : `私を構成する9冊の小説\n\n${shareUrl}\n${HASHTAG}`;
+      ? `${userName}を構成する9つの小説\n\n${shareUrl}\n${HASHTAG}`
+      : `私を構成する9つの小説\n\n${shareUrl}\n${HASHTAG}`;
     window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank", "width=550,height=420");
   };
 
@@ -436,7 +436,7 @@ export default function App() {
           letterSpacing: 2,
           marginTop: 6,
         }}>
-          私を構成する9冊の小説
+          私を構成する9つの小説
         </h1>
       </div>
 
@@ -447,7 +447,7 @@ export default function App() {
         <div style={{ textAlign: "center", marginBottom: 20 }}>
           {isSharedView ? (
             <p style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 16, fontWeight: 600, color: "#333" }}>
-              {userName || "名無し"}さんの9冊
+              {userName || "名無し"}さんの9選
             </p>
           ) : (
             <input
@@ -466,7 +466,7 @@ export default function App() {
           {/* グリッド内タイトル（画像保存時に含まれる） */}
           <div style={{ textAlign: "center", marginBottom: 12 }}>
             <span style={{ fontFamily: "'Shippori Mincho', serif", fontSize: 14, color: "#666", letterSpacing: 1 }}>
-              {userName ? `${userName}を構成する9冊の小説` : "私を構成する9冊の小説"}
+              {userName ? `${userName}を構成する9つの小説` : "私を構成する9つの小説"}
             </span>
           </div>
 
@@ -526,7 +526,7 @@ export default function App() {
         {/* カウンター */}
         <div style={{ textAlign: "center", marginTop: 14, fontSize: 13, color: "#999" }}>
           {selectedCount} / 9 選択済み
-          {selectedCount < 9 && !isSharedView && <span style={{ color: "#4a90d9", marginLeft: 8 }}>あと{9 - selectedCount}冊</span>}
+          {selectedCount < 9 && !isSharedView && <span style={{ color: "#4a90d9", marginLeft: 8 }}>あと{9 - selectedCount}つ</span>}
         </div>
 
         {/* Amazonで探す */}
@@ -628,7 +628,7 @@ export default function App() {
                 </button>
               </div>
               <button className="main-btn btn-reset" onClick={resetForOwn}>
-                自分の9冊を作る
+                自分の9選を作る
               </button>
             </>
           ) : (
