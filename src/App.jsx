@@ -77,9 +77,10 @@ function debounce(fn, ms) {
 
 // ========== Open Library API (バックアップ) ==========
 async function searchBooksOpenLibrary(query) {
+  if (!query || query.length < 4) return [];
   try {
     const res = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=8`);
-    if (!res.ok) return [];
+    if (!res.ok) { console.error("Open Library error:", res.status); return []; }
     const data = await res.json();
     if (!data.docs || data.docs.length === 0) return [];
     return data.docs.map((doc) => {
@@ -100,7 +101,7 @@ async function searchBooksOpenLibrary(query) {
 
 // ========== 検索API ==========
 async function searchBooks(query) {
-  if (!query || query.length < 2) return [];
+  if (!query || query.length < 3) return [];
   const cacheKey = query.toLowerCase().trim();
   if (searchCache[cacheKey]) return searchCache[cacheKey];
   // Google Books APIを試行
@@ -201,7 +202,7 @@ export default function App() {
   // 検索デバウンス
   const debouncedSearch = useCallback(
     debounce(async (q) => {
-      if (q.length < 2) { setSearchResults([]); setSearching(false); setSearchError(""); return; }
+      if (q.length < 3) { setSearchResults([]); setSearching(false); setSearchError(""); return; }
       setSearching(true);
       setSearchError("");
       try {
