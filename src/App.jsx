@@ -58,7 +58,7 @@ async function fetchBookById(bookId) {
   // ISBN (楽天ブックス経由)
   if (/^\d{10,13}$/.test(bookId)) {
     try {
-      const res = await fetch(`https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?applicationId=${RAKUTEN_APP_ID}&isbn=${bookId}&format=json`);
+      const res = await fetch(`https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404?applicationId=${RAKUTEN_APP_ID}&isbn=${bookId}&format=json`);
       if (res.ok) {
         const data = await res.json();
         if (data.Items && data.Items.length > 0) {
@@ -168,7 +168,7 @@ async function searchBooksOpenLibrary(query) {
 // ========== 楽天ブックスAPI (メイン) ==========
 async function searchBooksRakuten(query) {
   try {
-    const url = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?applicationId=${RAKUTEN_APP_ID}&title=${encodeURIComponent(query)}&hits=10&format=json`;
+    const url = `https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404?applicationId=${RAKUTEN_APP_ID}&title=${encodeURIComponent(query)}&hits=10&format=json`;
     const res = await fetch(url);
     if (res.status === 429) return "API_LIMIT";
     if (!res.ok) return [];
