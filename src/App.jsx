@@ -831,6 +831,11 @@ export default function App() {
           )}
         </div>
 
+        {/* このサイトを作った人 */}
+        <div style={{ textAlign: "center", marginTop: 8 }}>
+          <a href="https://x.com/monayoblog/status/2030047055947919868" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#999", textDecoration: "none" }}>🔗 このサイトを作った人</a>
+        </div>
+
         {/* 注意書き */}
         <div style={{ textAlign: "center", marginTop: 24, fontSize: 11, color: "#bbb", lineHeight: 1.8 }}>
           <p>Amazonアソシエイトに参加しています</p>
