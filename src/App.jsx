@@ -265,6 +265,7 @@ export default function App() {
   const [isSharedView, setIsSharedView] = useState(false);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const loadingCancelled = useRef(false);
   const [showNameInput, setShowNameInput] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
@@ -288,12 +289,15 @@ export default function App() {
       const ids = decodeShareIds(shareData);
       if (ids.length > 0) {
         const loadBooks = async () => {
+          loadingCancelled.current = false;
           setIsSharedView(true);
           const newBooks = Array(9).fill(null);
           // 1回目の取得
           for (let idx = 0; idx < ids.length; idx++) {
+            if (loadingCancelled.current) return;
             if (ids[idx]) {
               const book = await fetchBookById(ids[idx]);
+              if (loadingCancelled.current) return;
               if (book) {
                 newBooks[idx] = book;
                 setBooks([...newBooks]);
@@ -303,16 +307,19 @@ export default function App() {
           }
           // 失敗した本をリトライ
           for (let idx = 0; idx < ids.length; idx++) {
+            if (loadingCancelled.current) return;
             if (ids[idx] && !newBooks[idx]) {
               await new Promise(r => setTimeout(r, 1200));
+              if (loadingCancelled.current) return;
               const book = await fetchBookById(ids[idx]);
+              if (loadingCancelled.current) return;
               if (book) {
                 newBooks[idx] = book;
                 setBooks([...newBooks]);
               }
             }
           }
-          setBooks([...newBooks]);
+          if (!loadingCancelled.current) setBooks([...newBooks]);
         };
         loadBooks();
       }
@@ -444,6 +451,7 @@ export default function App() {
 
   // 自分の9選を新しく作る
   const resetForOwn = () => {
+    loadingCancelled.current = true;
     setBooks(Array(9).fill(null));
     setComments({});
     setUserName("");
