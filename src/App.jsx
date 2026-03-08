@@ -302,14 +302,16 @@ export default function App() {
                 newBooks[idx] = book;
                 setBooks([...newBooks]);
               }
-              await new Promise(r => setTimeout(r, 1200));
+              await new Promise(r => setTimeout(r, 1500));
             }
           }
-          // 失敗した本をリトライ
-          for (let idx = 0; idx < ids.length; idx++) {
-            if (loadingCancelled.current) return;
-            if (ids[idx] && !newBooks[idx]) {
-              await new Promise(r => setTimeout(r, 1200));
+          // 失敗した本をリトライ（2回）
+          for (let retry = 0; retry < 2; retry++) {
+            const failedIds = ids.map((id, idx) => id && !newBooks[idx] ? idx : -1).filter(i => i >= 0);
+            if (failedIds.length === 0) break;
+            for (const idx of failedIds) {
+              if (loadingCancelled.current) return;
+              await new Promise(r => setTimeout(r, 1500));
               if (loadingCancelled.current) return;
               const book = await fetchBookById(ids[idx]);
               if (loadingCancelled.current) return;
