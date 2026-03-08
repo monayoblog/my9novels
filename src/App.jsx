@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 // ========== 設定 ==========
 const AFFILIATE_TAG = "my9novels-22";
 const RAKUTEN_APP_ID = "pk_lb4gY6mBppXCKKtD9Ox40hHKJr6zbg6RBIpBajA0srS";
+const RAKUTEN_APP_UUID = "0bc0476e-eba5-4dbb-952e-e6b15725cfe6";
 const RAKUTEN_AFFILIATE_ID = "1b4ea65d.41f24d10.1b4ea65e.64494042";
 const SITE_URL = "https://my9novels.vercel.app"; // ← ドメイン反映後に https://my9novels.com に変更
 const HASHTAG = "#My9Novels #私を構成する9つの小説";
@@ -58,7 +59,7 @@ async function fetchBookById(bookId) {
   // ISBN (楽天ブックス経由)
   if (/^\d{10,13}$/.test(bookId)) {
     try {
-      const res = await fetch(`https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404?accessKey=${RAKUTEN_APP_ID}&isbn=${bookId}&format=json`);
+      const res = await fetch(`https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404?accessKey=${RAKUTEN_APP_ID}&applicationId=${RAKUTEN_APP_UUID}&isbn=${bookId}&format=json`);
       if (res.ok) {
         const data = await res.json();
         if (data.Items && data.Items.length > 0) {
@@ -168,7 +169,7 @@ async function searchBooksOpenLibrary(query) {
 // ========== 楽天ブックスAPI (メイン) ==========
 async function searchBooksRakuten(query) {
   try {
-    const url = `https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404?accessKey=${RAKUTEN_APP_ID}&title=${encodeURIComponent(query)}&hits=10&format=json`;
+    const url = `https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404?accessKey=${RAKUTEN_APP_ID}&applicationId=${RAKUTEN_APP_UUID}&title=${encodeURIComponent(query)}&hits=10&format=json`;
     const res = await fetch(url);
     if (res.status === 429) return "API_LIMIT";
     if (!res.ok) return [];
