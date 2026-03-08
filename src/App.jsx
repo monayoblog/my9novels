@@ -78,9 +78,7 @@ function debounce(fn, ms) {
 // ========== Open Library API (バックアップ) ==========
 async function searchBooksOpenLibrary(query) {
   try {
-    const res = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=8&lang=jpn`, {
-      headers: { "User-Agent": "My9Novels/1.0 (my9novels.com)" }
-    });
+    const res = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=8`);
     if (!res.ok) return [];
     const data = await res.json();
     if (!data.docs || data.docs.length === 0) return [];
@@ -97,7 +95,7 @@ async function searchBooksOpenLibrary(query) {
         source: "openlibrary",
       };
     });
-  } catch { return []; }
+  } catch (err) { console.error("Open Library error:", err); return []; }
 }
 
 // ========== 検索API ==========
@@ -108,13 +106,18 @@ async function searchBooks(query) {
   // Google Books APIを試行
   for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
     try {
-      const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=8&langRestrict=ja&printType=books&key=${getApiKey()}`;
+      const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=20&langRestrict=ja&printType=books&key=${getApiKey()}`;
       const res = await fetch(url);
       if (res.status === 429) continue;
       if (!res.ok) continue;
       const data = await res.json();
       if (!data.items || data.items.length === 0) break;
-      const results = data.items.map((item) => {
+      const results = data.items
+        .filter((item) => {
+          const categories = (item.volumeInfo.categories || []).join(" ").toLowerCase();
+          return !categories.includes("comic") && !categories.includes("manga") && !categories.includes("graphic novel");
+        })
+        .map((item) => {
         const rawThumb = item.volumeInfo.imageLinks
           ? (item.volumeInfo.imageLinks.thumbnail || item.volumeInfo.imageLinks.smallThumbnail || "").replace("http://", "https://")
           : "";
@@ -127,7 +130,7 @@ async function searchBooks(query) {
           publishedDate: item.volumeInfo.publishedDate || "",
           source: "google",
         };
-      });
+      }).slice(0, 8);
       searchCache[cacheKey] = results;
       return results;
     } catch { continue; }
@@ -545,7 +548,8 @@ export default function App() {
                 <span className="slot-number">{i + 1}</span>
 
                 {book ? (
-                  <>
+                  <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%" }}>
+                    <div style={{ flex: "1 1 auto", position: "relative", overflow: "hidden", borderRadius: "8px 8px 0 0", minHeight: 0 }}>
                     {book.thumbnail ? (
                       isSharedView ? (
                         <a href={generateAmazonUrl(book.title, book.author)} target="_blank" rel="noopener noreferrer" style={{ display: "block", width: "100%", height: "100%" }}>
@@ -558,7 +562,7 @@ export default function App() {
                       <div style={{
                         width: "100%", height: "100%",
                         display: "flex", alignItems: "center", justifyContent: "center",
-                        background: "#f0f0f0", borderRadius: 8,
+                        background: "#f0f0f0",
                         padding: 8, textAlign: "center",
                       }}>
                         <span style={{ fontSize: 12, color: "#888", lineHeight: 1.4 }}>{book.title}</span>
@@ -573,7 +577,12 @@ export default function App() {
                         <button className="action-btn action-comment" onClick={(e) => { e.stopPropagation(); openComment(i); }} title="コメント">💬</button>
                       </div>
                     )}
-                  </>
+                    </div>
+                    <div style={{ background: "#f8f8f8", padding: "3px 5px", borderRadius: "0 0 8px 8px", flexShrink: 0 }}>
+                      <div style={{ fontSize: 9, color: "#333", lineHeight: 1.3, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", fontWeight: 600 }}>{book.title}</div>
+                      {book.author && <div style={{ fontSize: 8, color: "#888", lineHeight: 1.2, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{book.author}</div>}
+                    </div>
+                  </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                     <span style={{ fontSize: 28, color: "#ccc", fontWeight: 300, lineHeight: 1 }}>+</span>
