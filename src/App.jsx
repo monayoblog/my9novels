@@ -283,11 +283,19 @@ export default function App() {
       if (ids.length > 0) {
         const loadBooks = async () => {
           const newBooks = Array(9).fill(null);
-          const promises = ids.map((id, idx) => 
-            id ? fetchBookById(id).then(book => { if (book) newBooks[idx] = book; }) : Promise.resolve()
-          );
-          await Promise.all(promises);
-          setBooks(newBooks);
+          for (let idx = 0; idx < ids.length; idx++) {
+            if (ids[idx]) {
+              const book = await fetchBookById(ids[idx]);
+              if (book) {
+                newBooks[idx] = book;
+                setBooks([...newBooks]);
+              }
+              if (idx < ids.length - 1 && /^\d{10,13}$/.test(ids[idx])) {
+                await new Promise(r => setTimeout(r, 1100));
+              }
+            }
+          }
+          setBooks([...newBooks]);
           setIsSharedView(true);
         };
         loadBooks();
@@ -614,6 +622,9 @@ export default function App() {
             <button className="main-btn btn-reset" onClick={resetForOwn} style={{ width: "100%" }}>
               自分の9選を作る
             </button>
+            {selectedCount < 9 && (
+              <p style={{ fontSize: 12, color: "#999", marginTop: 8 }}>📚 本の表示には数秒かかります...</p>
+            )}
           </div>
         )}
 
