@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 // ========== 設定 ==========
 const AFFILIATE_TAG = "my9novels-22";
-const RAKUTEN_APP_ID = "0bc0476e-eba5-4dbb-952e-e6b15725cfe6";
+const RAKUTEN_APP_ID = "pk_lb4gY6mBppXCKKtD9Ox40hHKJr6zbg6RBIpBajA0srS";
 const RAKUTEN_AFFILIATE_ID = "1b4ea65d.41f24d10.1b4ea65e.64494042";
 const SITE_URL = "https://my9novels.vercel.app"; // ← ドメイン反映後に https://my9novels.com に変更
 const HASHTAG = "#My9Novels #私を構成する9つの小説";
