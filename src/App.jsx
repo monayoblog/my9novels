@@ -833,7 +833,7 @@ export default function App() {
 
         {/* このサイトを作った人 */}
         <div style={{ textAlign: "center", marginTop: 8 }}>
-          <a href="https://x.com/monayoblog/status/2030047055947919868" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#4a90d9", textDecoration: "none" }}>🔗 このサイトを作った人</a>
+          <a href="https://x.com/monayoblog/status/2030047055947919868" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#4a90d9", textDecoration: "none" }}>👤 このサイトを作った人</a>
         </div>
 
         {/* 注意書き */}
