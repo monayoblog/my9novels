@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 // ========== 設定 ==========
 const AFFILIATE_TAG = "my9novels-22";
+const RAKUTEN_APP_ID = "0bc0476e-eba5-4dbb-952e-e6b15725cfe6";
+const RAKUTEN_AFFILIATE_ID = "1b4ea65d.41f24d10.1b4ea65e.64494042";
 const SITE_URL = "https://my9novels.vercel.app"; // ← ドメイン反映後に https://my9novels.com に変更
 const HASHTAG = "#My9Novels #私を構成する9つの小説";
 
@@ -35,6 +37,11 @@ function generateAmazonUrl(title, author) {
   return `https://www.amazon.co.jp/s?k=${q}&i=stripbooks&tag=${AFFILIATE_TAG}`;
 }
 
+function generateRakutenUrl(title, author) {
+  const q = encodeURIComponent(`${title} ${author || ""}`.trim());
+  return `https://books.rakuten.co.jp/search?sv=30&v=2&s=0&b=1&g=001&sitem=${q}&affiliateId=${RAKUTEN_AFFILIATE_ID}`;
+}
+
 function encodeShareData(books) {
   return books.map(b => b ? b.id : "").join(",");
 }
@@ -47,6 +54,30 @@ function decodeShareIds(hash) {
 async function fetchBookById(bookId) {
   if (!bookId) return null;
   if (bookCache[bookId]) return bookCache[bookId];
+  
+  // ISBN (楽天ブックス経由)
+  if (/^\d{10,13}$/.test(bookId)) {
+    try {
+      const res = await fetch(`https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?applicationId=${RAKUTEN_APP_ID}&isbn=${bookId}&format=json`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.Items && data.Items.length > 0) {
+          const item = data.Items[0].Item || data.Items[0];
+          const rawThumb = item.largeImageUrl || item.mediumImageUrl || "";
+          const book = {
+            id: bookId,
+            title: item.title || "タイトル不明",
+            author: item.author || "",
+            originalThumbnail: rawThumb,
+            thumbnail: rawThumb ? proxyImageUrl(rawThumb) : "",
+            isbn: bookId,
+          };
+          bookCache[bookId] = book;
+          return book;
+        }
+      }
+    } catch {}
+  }
   
   // Open Library ID (/works/OL... 形式)
   if (bookId.startsWith("/works/")) {
@@ -134,53 +165,79 @@ async function searchBooksOpenLibrary(query) {
   } catch (err) { console.error("Open Library error:", err); return []; }
 }
 
+// ========== 楽天ブックスAPI (メイン) ==========
+async function searchBooksRakuten(query) {
+  try {
+    const url = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?applicationId=${RAKUTEN_APP_ID}&title=${encodeURIComponent(query)}&hits=10&format=json`;
+    const res = await fetch(url);
+    if (res.status === 429) return "API_LIMIT";
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!data.Items || data.Items.length === 0) return [];
+    return data.Items.map((entry) => {
+      const item = entry.Item || entry;
+      const rawThumb = item.largeImageUrl || item.mediumImageUrl || item.smallImageUrl || "";
+      return {
+        id: item.isbn || item.title,
+        title: item.title || "タイトル不明",
+        author: item.author || "",
+        thumbnail: rawThumb,
+        proxiedThumbnail: proxyImageUrl(rawThumb),
+        publishedDate: item.salesDate || "",
+        source: "rakuten",
+        isbn: item.isbn || "",
+      };
+    });
+  } catch (err) { console.error("Rakuten API error:", err); return []; }
+}
+
 // ========== 検索API ==========
 async function searchBooks(query) {
   if (!query || query.length < 2) return [];
   const cacheKey = query.toLowerCase().trim();
   if (searchCache[cacheKey]) return searchCache[cacheKey];
-  // Google Books APIを試行
-  for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
-    try {
-      const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=20&langRestrict=ja&printType=books&key=${getApiKey()}`;
-      const res = await fetch(url);
-      if (res.status === 429) continue;
-      if (!res.ok) continue;
-      const data = await res.json();
-      if (!data.items || data.items.length === 0) break;
-      const results = data.items
-        .filter((item) => {
-          const categories = (item.volumeInfo.categories || []).join(" ").toLowerCase();
-          return !categories.includes("comic") && !categories.includes("manga") && !categories.includes("graphic novel");
-        })
-        .map((item) => {
-        const rawThumb = item.volumeInfo.imageLinks
-          ? (item.volumeInfo.imageLinks.thumbnail || item.volumeInfo.imageLinks.smallThumbnail || "").replace("http://", "https://")
-          : "";
-        return {
-          id: item.id,
-          title: item.volumeInfo.title || "タイトル不明",
-          author: (item.volumeInfo.authors || []).join(", ") || "",
-          thumbnail: rawThumb,
-          proxiedThumbnail: proxyImageUrl(rawThumb),
-          publishedDate: item.volumeInfo.publishedDate || "",
-          source: "google",
-        };
-      }).slice(0, 8);
-      searchCache[cacheKey] = results;
-      return results;
-    } catch { continue; }
+  
+  // 楽天ブックスAPIをメインで使用
+  const rakutenResults = await searchBooksRakuten(query);
+  if (rakutenResults === "API_LIMIT") {
+    // 楽天も制限 → Google Booksにフォールバック
+    for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
+      try {
+        const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=20&langRestrict=ja&printType=books&key=${getApiKey()}`;
+        const res = await fetch(url);
+        if (res.status === 429) continue;
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (!data.items || data.items.length === 0) break;
+        const results = data.items
+          .filter((item) => {
+            const categories = (item.volumeInfo.categories || []).join(" ").toLowerCase();
+            return !categories.includes("comic") && !categories.includes("manga") && !categories.includes("graphic novel");
+          })
+          .map((item) => {
+            const rawThumb = item.volumeInfo.imageLinks
+              ? (item.volumeInfo.imageLinks.thumbnail || item.volumeInfo.imageLinks.smallThumbnail || "").replace("http://", "https://")
+              : "";
+            return {
+              id: item.id,
+              title: item.volumeInfo.title || "タイトル不明",
+              author: (item.volumeInfo.authors || []).join(", ") || "",
+              thumbnail: rawThumb,
+              proxiedThumbnail: proxyImageUrl(rawThumb),
+              publishedDate: item.volumeInfo.publishedDate || "",
+              source: "google",
+            };
+          }).slice(0, 8);
+        searchCache[cacheKey] = results;
+        return results;
+      } catch { continue; }
+    }
+    return "API_LIMIT";
   }
-  // Google Booksが全滅 → Open Libraryにフォールバック
-  console.log("Google Books API limit reached, falling back to Open Library");
-  if (query.length < 4) return "SHORT_QUERY";
-  const olResults = await searchBooksOpenLibrary(query);
-  if (olResults === "API_LIMIT") return "API_LIMIT";
-  if (olResults.length > 0) {
-    searchCache[cacheKey] = olResults;
-    return olResults;
+  if (rakutenResults.length > 0) {
+    searchCache[cacheKey] = rakutenResults;
+    return rakutenResults;
   }
-  // Open Libraryも結果なし → 普通の「見つかりません」扱い（エラーではない）
   return [];
 }
 
@@ -248,9 +305,6 @@ export default function App() {
         if (results === "API_LIMIT") {
           setSearchResults([]);
           setSearchError("ただいまアクセスが集中しています。しばらくしてからお試しください。");
-        } else if (results === "SHORT_QUERY") {
-          setSearchResults([]);
-          setSearchError("もう少し詳しいキーワードで検索してください（例：「国宝 吉田」）");
         } else {
           setSearchResults(results);
         }
@@ -553,6 +607,15 @@ export default function App() {
       {/* メインコンテンツ */}
       <div style={{ maxWidth: 520, margin: "0 auto", padding: "12px 16px 40px" }}>
 
+        {/* 共有ページ：自分の9選を作るボタン（上部） */}
+        {isSharedView && (
+          <div style={{ textAlign: "center", marginBottom: 16 }}>
+            <button className="main-btn btn-reset" onClick={resetForOwn} style={{ width: "100%" }}>
+              自分の9選を作る
+            </button>
+          </div>
+        )}
+
         {/* ユーザー名 */}
         <div style={{ textAlign: "center", marginBottom: 20 }}>
           {isSharedView ? null : (
@@ -637,7 +700,7 @@ export default function App() {
 
           {/* フッター情報 */}
           <div style={{ textAlign: "center", marginTop: 10 }}>
-            <span style={{ fontSize: 11, color: "#ccc" }}>Books data powered by Google Books</span>
+            <span style={{ fontSize: 11, color: "#ccc" }}>Books data powered by 楽天ブックス / Google Books</span>
           </div>
         </div>
 
@@ -647,7 +710,7 @@ export default function App() {
           {selectedCount < 9 && !isSharedView && <span style={{ color: "#4a90d9", marginLeft: 8 }}>あと{9 - selectedCount}つ</span>}
         </div>
 
-        {/* Amazonで探す */}
+        {/* 通販で探す */}
         {books.some(Boolean) && (
           <div style={{
             marginTop: 20,
@@ -657,53 +720,23 @@ export default function App() {
             padding: "18px 16px",
           }}>
             <div style={{ textAlign: "center", marginBottom: 14 }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: "#333" }}>Amazonで探す</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: "#333" }}>通販で探す</span>
             </div>
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-              gap: 8,
-            }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {books.map((book, i) =>
                 book ? (
-                  <a
-                    key={i}
-                    href={generateAmazonUrl(book.title, book.author)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "10px 12px",
-                      background: "#fff",
-                      border: "1.5px solid #f0e0c0",
-                      borderRadius: 10,
-                      textDecoration: "none",
-                      transition: "all 0.15s",
-                      cursor: "pointer",
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#ff9900"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(255,153,0,0.15)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#f0e0c0"; e.currentTarget.style.boxShadow = "none"; }}
-                  >
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid #f0e0c0" }}>
                     <span style={{
-                      width: 24, height: 24,
-                      borderRadius: "50%",
-                      background: "#ff9900",
-                      color: "#fff",
+                      width: 22, height: 22, borderRadius: "50%", background: "#888", color: "#fff",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 12, fontWeight: 700,
-                      flexShrink: 0,
+                      fontSize: 11, fontWeight: 700, flexShrink: 0,
                     }}>{i + 1}</span>
-                    <span style={{
-                      fontSize: 13, fontWeight: 500, color: "#333",
-                      flex: 1, minWidth: 0,
-                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                    }}>{book.title}</span>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#999" style={{ flexShrink: 0 }}>
-                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" stroke="#999" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </a>
+                    <span style={{ fontSize: 12, fontWeight: 500, color: "#333", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{book.title}</span>
+                    <a href={generateAmazonUrl(book.title, book.author)} target="_blank" rel="noopener noreferrer"
+                      style={{ padding: "4px 10px", background: "#ff9900", color: "#fff", borderRadius: 6, fontSize: 11, fontWeight: 700, textDecoration: "none", flexShrink: 0 }}>Amazon</a>
+                    <a href={generateRakutenUrl(book.title, book.author)} target="_blank" rel="noopener noreferrer"
+                      style={{ padding: "4px 10px", background: "#bf0000", color: "#fff", borderRadius: 6, fontSize: 11, fontWeight: 700, textDecoration: "none", flexShrink: 0 }}>楽天</a>
+                  </div>
                 ) : null
               )}
             </div>
@@ -916,7 +949,7 @@ export default function App() {
               <p>・画像の権利は各権利者に帰属します。</p>
               <p>・公序良俗に反する使用を禁じます。</p>
               <p>・本サービスの書籍情報は Google Books API を利用しています。情報の正確性・完全性は保証しません。</p>
-              <p>・Amazonリンクは書籍名等を用いた検索ページへ遷移します。個別商品ページへの一致・在庫・価格・表示順は保証しません。</p>
+              <p>・Amazon・楽天ブックスのリンクは書籍名等を用いた検索ページへ遷移します。個別商品ページへの一致・在庫・価格・表示順は保証しません。</p>
               <p>・外部サイト側の変更、削除、移転等によりリンク切れや内容変更が発生する場合があり、運営者は保証しません。</p>
               <p>・運営者は、メンテナンス、障害対応、その他必要な場合に、本サービスの全部または一部を中断・変更・終了できるものとします。</p>
               <p>・本サービスは現状有姿で提供されます。利用者が本サービスの利用により被った損害について、運営者に故意または重過失がある場合を除き責任を負いません。</p>
@@ -943,6 +976,7 @@ export default function App() {
               <p style={{ fontWeight: 600, marginTop: 12, marginBottom: 4 }}>外部サービス</p>
               <p>・書籍情報の取得に Google Books API を使用しています。Google のプライバシーポリシーが適用されます。</p>
               <p>・Amazonアソシエイトプログラムに参加しており、リンク経由の購入に対して紹介料が発生する場合があります。</p>
+              <p>・楽天アフィリエイトプログラムに参加しており、リンク経由の購入に対して紹介料が発生する場合があります。</p>
               <p>・アクセス解析のため、Google Analytics 等の解析ツールを導入する場合があります。</p>
             </div>
           </div>
