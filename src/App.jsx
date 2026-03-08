@@ -698,11 +698,11 @@ export default function App() {
               </div>
             ))}
           </div>
+        </div>
 
-          {/* フッター情報 */}
-          <div style={{ textAlign: "center", marginTop: 10 }}>
-            <span style={{ fontSize: 11, color: "#ccc" }}>Books data powered by 楽天ブックス / Google Books</span>
-          </div>
+        {/* フッター情報（画像保存には含まない） */}
+        <div style={{ textAlign: "center", marginTop: 10 }}>
+          <span style={{ fontSize: 11, color: "#ccc" }}>Books data powered by 楽天ブックス / Google Books</span>
         </div>
 
         {/* カウンター */}
