@@ -448,7 +448,7 @@ export default function App() {
     setComments({});
     setUserName("");
     setIsSharedView(false);
-    window.location.hash = "";
+    window.history.replaceState(null, "", window.location.pathname);
   };
 
   return (
@@ -659,6 +659,12 @@ export default function App() {
         </div>
 
         {/* 9マスグリッド（画像保存対象） */}
+        {isSharedView && selectedCount > 0 && (
+          <p style={{ textAlign: "center", fontSize: 12, color: "#999", marginBottom: 8 }}>表紙をタップするとAmazonでチェックできます</p>
+        )}
+        {!isSharedView && selectedCount > 0 && (
+          <p style={{ textAlign: "center", fontSize: 12, color: "#999", marginBottom: 8 }}>表紙の💬をタップでひとことコメントを追加できます</p>
+        )}
         <div ref={gridRef} style={{ background: "#fff", borderRadius: 16, padding: 16, boxShadow: "0 1px 8px rgba(0,0,0,0.06)" }}>
           {/* グリッド内タイトル（画像保存時に含まれる） */}
           <div style={{ textAlign: "center", marginBottom: 12 }}>
