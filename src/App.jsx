@@ -282,7 +282,9 @@ export default function App() {
       const ids = decodeShareIds(shareData);
       if (ids.length > 0) {
         const loadBooks = async () => {
+          setIsSharedView(true);
           const newBooks = Array(9).fill(null);
+          // 1回目の取得
           for (let idx = 0; idx < ids.length; idx++) {
             if (ids[idx]) {
               const book = await fetchBookById(ids[idx]);
@@ -290,13 +292,21 @@ export default function App() {
                 newBooks[idx] = book;
                 setBooks([...newBooks]);
               }
-              if (idx < ids.length - 1 && /^\d{10,13}$/.test(ids[idx])) {
-                await new Promise(r => setTimeout(r, 1100));
+              await new Promise(r => setTimeout(r, 1200));
+            }
+          }
+          // 失敗した本をリトライ
+          for (let idx = 0; idx < ids.length; idx++) {
+            if (ids[idx] && !newBooks[idx]) {
+              await new Promise(r => setTimeout(r, 1200));
+              const book = await fetchBookById(ids[idx]);
+              if (book) {
+                newBooks[idx] = book;
+                setBooks([...newBooks]);
               }
             }
           }
           setBooks([...newBooks]);
-          setIsSharedView(true);
         };
         loadBooks();
       }
@@ -623,7 +633,7 @@ export default function App() {
               自分の9選を作る
             </button>
             {selectedCount < 9 && (
-              <p style={{ fontSize: 12, color: "#999", marginTop: 8 }}>📚 本の表示には数秒かかります...</p>
+              <p style={{ fontSize: 12, color: "#999", marginTop: 8 }}>📚 本の表示には数秒かかります</p>
             )}
           </div>
         )}
