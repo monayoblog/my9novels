@@ -169,26 +169,32 @@ async function searchBooksOpenLibrary(query) {
 // ========== 楽天ブックスAPI (メイン) ==========
 async function searchBooksRakuten(query) {
   try {
-    const url = `https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404?accessKey=${RAKUTEN_APP_ID}&applicationId=${RAKUTEN_APP_UUID}&title=${encodeURIComponent(query)}&hits=10&format=json`;
+    const url = `https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404?accessKey=${RAKUTEN_APP_ID}&applicationId=${RAKUTEN_APP_UUID}&title=${encodeURIComponent(query)}&hits=20&format=json`;
     const res = await fetch(url);
     if (res.status === 429) return "API_LIMIT";
     if (!res.ok) return [];
     const data = await res.json();
     if (!data.Items || data.Items.length === 0) return [];
-    return data.Items.map((entry) => {
-      const item = entry.Item || entry;
-      const rawThumb = item.largeImageUrl || item.mediumImageUrl || item.smallImageUrl || "";
-      return {
-        id: item.isbn || item.title,
-        title: item.title || "タイトル不明",
-        author: item.author || "",
-        thumbnail: rawThumb,
-        proxiedThumbnail: proxyImageUrl(rawThumb),
-        publishedDate: item.salesDate || "",
-        source: "rakuten",
-        isbn: item.isbn || "",
-      };
-    });
+    return data.Items
+      .map((entry) => entry.Item || entry)
+      .filter((item) => {
+        const genre = item.booksGenreId || "";
+        return !genre.startsWith("001001");
+      })
+      .slice(0, 10)
+      .map((item) => {
+        const rawThumb = item.largeImageUrl || item.mediumImageUrl || item.smallImageUrl || "";
+        return {
+          id: item.isbn || item.title,
+          title: item.title || "タイトル不明",
+          author: item.author || "",
+          thumbnail: rawThumb,
+          proxiedThumbnail: proxyImageUrl(rawThumb),
+          publishedDate: item.salesDate || "",
+          source: "rakuten",
+          isbn: item.isbn || "",
+        };
+      });
   } catch (err) { console.error("Rakuten API error:", err); return []; }
 }
 
