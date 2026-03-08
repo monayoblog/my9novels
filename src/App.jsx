@@ -207,39 +207,15 @@ async function searchBooks(query) {
   // 楽天ブックスAPIをメインで使用
   const rakutenResults = await searchBooksRakuten(query);
   if (rakutenResults === "API_LIMIT") {
-    // 楽天も制限 → Google Booksにフォールバック
-    for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
-      try {
-        const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=20&langRestrict=ja&printType=books&key=${getApiKey()}`;
-        const res = await fetch(url);
-        if (res.status === 429) continue;
-        if (!res.ok) continue;
-        const data = await res.json();
-        if (!data.items || data.items.length === 0) break;
-        const results = data.items
-          .filter((item) => {
-            const categories = (item.volumeInfo.categories || []).join(" ").toLowerCase();
-            return !categories.includes("comic") && !categories.includes("manga") && !categories.includes("graphic novel");
-          })
-          .map((item) => {
-            const rawThumb = item.volumeInfo.imageLinks
-              ? (item.volumeInfo.imageLinks.thumbnail || item.volumeInfo.imageLinks.smallThumbnail || "").replace("http://", "https://")
-              : "";
-            return {
-              id: item.id,
-              title: item.volumeInfo.title || "タイトル不明",
-              author: (item.volumeInfo.authors || []).join(", ") || "",
-              thumbnail: rawThumb,
-              proxiedThumbnail: proxyImageUrl(rawThumb),
-              publishedDate: item.volumeInfo.publishedDate || "",
-              source: "google",
-            };
-          }).slice(0, 8);
-        searchCache[cacheKey] = results;
-        return results;
-      } catch { continue; }
+    // 秒間制限 → 少し待ってリトライ
+    await new Promise(r => setTimeout(r, 1500));
+    const retryResults = await searchBooksRakuten(query);
+    if (retryResults === "API_LIMIT") return "RATE_LIMIT";
+    if (retryResults.length > 0) {
+      searchCache[cacheKey] = retryResults;
+      return retryResults;
     }
-    return "API_LIMIT";
+    return [];
   }
   if (rakutenResults.length > 0) {
     searchCache[cacheKey] = rakutenResults;
@@ -302,7 +278,7 @@ export default function App() {
                 newBooks[idx] = book;
                 setBooks([...newBooks]);
               }
-              await new Promise(r => setTimeout(r, 1500));
+              await new Promise(r => setTimeout(r, 1200));
             }
           }
           // 失敗した本をリトライ（2回）
@@ -311,7 +287,7 @@ export default function App() {
             if (failedIds.length === 0) break;
             for (const idx of failedIds) {
               if (loadingCancelled.current) return;
-              await new Promise(r => setTimeout(r, 1500));
+              await new Promise(r => setTimeout(r, 1200));
               if (loadingCancelled.current) return;
               const book = await fetchBookById(ids[idx]);
               if (loadingCancelled.current) return;
@@ -339,6 +315,9 @@ export default function App() {
         if (results === "API_LIMIT") {
           setSearchResults([]);
           setSearchError("ただいまアクセスが集中しています。しばらくしてからお試しください。");
+        } else if (results === "RATE_LIMIT") {
+          setSearchResults([]);
+          setSearchError("入力が速すぎます。少し待ってから再度検索してください。");
         } else {
           setSearchResults(results);
         }
