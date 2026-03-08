@@ -169,7 +169,7 @@ async function searchBooksOpenLibrary(query) {
 // ========== 楽天ブックスAPI (メイン) ==========
 async function searchBooksRakuten(query) {
   try {
-    const url = `https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404?accessKey=${RAKUTEN_APP_ID}&applicationId=${RAKUTEN_APP_UUID}&title=${encodeURIComponent(query)}&hits=20&format=json`;
+    const url = `https://openapi.rakuten.co.jp/services/api/BooksTotal/Search/20170404?accessKey=${RAKUTEN_APP_ID}&applicationId=${RAKUTEN_APP_UUID}&keyword=${encodeURIComponent(query)}&booksGenreId=001&hits=20&format=json`;
     const res = await fetch(url);
     if (res.status === 429) return "API_LIMIT";
     if (!res.ok) return [];
