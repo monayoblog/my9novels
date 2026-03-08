@@ -136,7 +136,7 @@ async function searchBooksOpenLibrary(query) {
 
 // ========== 検索API ==========
 async function searchBooks(query) {
-  if (!query || query.length < 3) return [];
+  if (!query || query.length < 2) return [];
   const cacheKey = query.toLowerCase().trim();
   if (searchCache[cacheKey]) return searchCache[cacheKey];
   // Google Books APIを試行
@@ -173,6 +173,7 @@ async function searchBooks(query) {
   }
   // Google Booksが全滅 → Open Libraryにフォールバック
   console.log("Google Books API limit reached, falling back to Open Library");
+  if (query.length < 4) return "SHORT_QUERY";
   const olResults = await searchBooksOpenLibrary(query);
   if (olResults === "API_LIMIT") return "API_LIMIT";
   if (olResults.length > 0) {
@@ -239,7 +240,7 @@ export default function App() {
   // 検索デバウンス
   const debouncedSearch = useCallback(
     debounce(async (q) => {
-      if (q.length < 3) { setSearchResults([]); setSearching(false); setSearchError(""); return; }
+      if (q.length < 2) { setSearchResults([]); setSearching(false); setSearchError(""); return; }
       setSearching(true);
       setSearchError("");
       try {
@@ -247,6 +248,9 @@ export default function App() {
         if (results === "API_LIMIT") {
           setSearchResults([]);
           setSearchError("ただいまアクセスが集中しています。しばらくしてからお試しください。");
+        } else if (results === "SHORT_QUERY") {
+          setSearchResults([]);
+          setSearchError("もう少し詳しいキーワードで検索してください（例：「国宝 吉田」）");
         } else {
           setSearchResults(results);
         }
