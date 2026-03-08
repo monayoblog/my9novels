@@ -47,6 +47,40 @@ function decodeShareIds(hash) {
 async function fetchBookById(bookId) {
   if (!bookId) return null;
   if (bookCache[bookId]) return bookCache[bookId];
+  
+  // Open Library ID (/works/OL... 形式)
+  if (bookId.startsWith("/works/")) {
+    try {
+      const res = await fetch(`https://openlibrary.org${bookId}.json`);
+      if (!res.ok) return null;
+      const work = await res.json();
+      const coverId = work.covers ? work.covers[0] : null;
+      const rawThumb = coverId ? `https://covers.openlibrary.org/b/id/${coverId}-M.jpg` : "";
+      const authorNames = [];
+      if (work.authors) {
+        for (const a of work.authors.slice(0, 3)) {
+          try {
+            const authorKey = a.author?.key || a.key;
+            if (authorKey) {
+              const aRes = await fetch(`https://openlibrary.org${authorKey}.json`);
+              if (aRes.ok) { const aData = await aRes.json(); authorNames.push(aData.name || ""); }
+            }
+          } catch {}
+        }
+      }
+      const book = {
+        id: bookId,
+        title: work.title || "タイトル不明",
+        author: authorNames.join(", ") || "",
+        originalThumbnail: rawThumb,
+        thumbnail: rawThumb ? proxyImageUrl(rawThumb) : "",
+      };
+      bookCache[bookId] = book;
+      return book;
+    } catch { return null; }
+  }
+  
+  // Google Books ID
   for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
     try {
       const res = await fetch(`https://www.googleapis.com/books/v1/volumes/${bookId}?key=${getApiKey()}`);
@@ -80,6 +114,7 @@ async function searchBooksOpenLibrary(query) {
   if (!query || query.length < 4) return [];
   try {
     const res = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=8`);
+    if (res.status === 429) return "API_LIMIT";
     if (!res.ok) { console.error("Open Library error:", res.status); return []; }
     const data = await res.json();
     if (!data.docs || data.docs.length === 0) return [];
@@ -139,11 +174,13 @@ async function searchBooks(query) {
   // Google Booksが全滅 → Open Libraryにフォールバック
   console.log("Google Books API limit reached, falling back to Open Library");
   const olResults = await searchBooksOpenLibrary(query);
+  if (olResults === "API_LIMIT") return "API_LIMIT";
   if (olResults.length > 0) {
     searchCache[cacheKey] = olResults;
     return olResults;
   }
-  return "API_LIMIT";
+  // Open Libraryも結果なし → 普通の「見つかりません」扱い（エラーではない）
+  return [];
 }
 
 // ========== メインコンポーネント ==========
